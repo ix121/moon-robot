@@ -1,0 +1,29 @@
+{
+  "method": "rm_handeye_eye_in_hand",
+  "parent_frame": "tcp",
+  "child_frame": "camera_color_optical_frame",
+  "transform": {
+    "translation_m": {
+      "x": -0.012903721333008891,
+      "y": -0.0626950220373055,
+      "z": 0.034284961371357336
+    },
+    "quaternion_xyzw": [
+      -0.021350514123604572,
+      0.0013292266216527932,
+      -0.016868506035884842,
+      0.9996288522283474
+    ],
+    "rpy_rad": [
+      -0.042743118071359595,
+      0.0019371652231521264,
+      -0.033787741761222206
+    ]
+  },
+  "metadata": {
+    "calibration_date": "2026-08-03_14-43-27",
+    "robot": "rm",
+    "mode": "eye_in_hand",
+    "method": "cv2.CALIB_HAND_EYE_TSAI"
+  }
+}
