@@ -1,0 +1,149 @@
+eco65_visual_grasp:
+  ros__parameters:
+    # Frames. Change these if your TF tree uses base_link/tcp instead.
+    base_frame: "baselink"
+    flange_frame: "Link6"
+    handeye_file: "/home/proton/eco65_grasp_ws/handeye_config.json"
+
+    # Gripper tip relative to flange/Link6. ECO65 current gripper tip is 15.5 cm
+    # along the flange +Z direction.
+    tool_xyz: [0.0, 0.0, 0.155]
+    tool_rpy: [0.0, 0.0, 0.0]
+
+    # Gemini 336 topics.
+    color_image_topic: "/camera/color/image_raw"
+    color_info_topic: "/camera/color/camera_info"
+    depth_image_topic: "/camera/depth/image_raw"
+    depth_info_topic: "/camera/depth/camera_info"
+    depth_to_color_topic: "/camera/depth_to_color"
+    # Gemini 336 default raw depth is usually not aligned, so this is false and
+    # /camera/depth_to_color is required. If you use aligned depth image, set
+    # this to true and change depth_image_topic accordingly.
+    depth_registered_to_color: false
+
+    # 当前现场标记为6x6字典；原4x4配置无法检测这些标记。
+    aruco_dictionary: "DICT_6X6_50"
+    marker_ids: []
+    polygon_shrink: 0.72
+    depth_min_m: 0.08
+    depth_max_m: 1.20
+    depth_stride: 2
+    min_plane_points: 80
+    max_surface_tilt_deg: 75.0
+
+    workspace_min: [-0.55, -0.55, -0.20]
+    workspace_max: [0.75, 0.55, 0.65]
+    table_height_m: -0.20
+    min_object_height_m: 0.015
+    enable_table_filter: false
+
+    stable_frames: 5
+    stable_position_std_m: 0.006
+    stable_yaw_std_deg: 6.0
+    target_timeout_s: 1.0
+    object_marker_id: 6
+    place_marker_id: 0
+    place_target_wait_s: 4.0
+    place_above_height_m: 0.050
+    place_xy_offset_m: [0.0, 0.0]
+    place_yaw_offset_deg: 0.0
+
+    # 线缆插孔定位：ArUco 位于插孔正上方 0.50m。
+    # 第一版只验证预插接位置，保持调用服务时的当前 TCP 姿态，不执行水平插入。
+    cable_socket_marker_id: 1
+    # 插孔有凸起且夹爪将夹持线缆：向下 0.53m，并沿基坐标 Y- 向外预留 0.21m。
+    cable_marker_to_preinsert_offset_base_m: [0.0, -0.21, -0.36]
+    # 与旋钮侧抓相同：工具/TCP +Z（夹爪末端）固定指向基坐标 Y+。
+    # 使用已验证可达且不会大幅绕行的滚转：工具 +X 固定为基坐标 Z-。
+    cable_tool_tip_axis_base: [0.0, 1.0, 0.0]
+    cable_tool_x_axis_base: [0.0, 0.0, -1.0]
+    # 插接默认直接沿当前 TCP +Z（夹爪前向）运动，避免朝向与运动方向相反。
+    cable_insert_use_tool_tip_axis: true
+    cable_insert_axis_base: [0.0, 1.0, 0.0]
+    cable_insert_tool_axis_sign: 1.0
+    # 控制器工具前向必须与期望的基坐标 Y+ 足够一致，否则禁止插接。
+    cable_insert_axis_min_alignment: 0.80
+    cable_target_wait_s: 4.0
+    cable_preinsert_speed: 6
+    cable_preinsert_timeout_s: 60.0
+    cable_preinsert_reached_position_tolerance_m: 0.015
+    cable_preinsert_reached_orientation_tolerance_deg: 8.0
+    cable_max_preinsert_move_m: 0.80
+    # 当前安全验证总行程为5cm，沿工具 +Z（当前即基坐标 Y+）插入。
+    cable_insert_distance_m: 0.05
+    # 分段插入，避免一次规划到不可达远端，并让 Fz 在每段运动中持续介入。
+    cable_insert_step_m: 0.01
+    cable_insert_speed: 3
+    # 插入前自动取 Fz 基线；相对基线达到 20N 的首个新样本立即停止。
+    cable_insert_force_threshold_n: 20.0
+    cable_insert_force_trigger_samples: 1
+    cable_insert_start_tolerance_m: 0.03
+    cable_insert_position_tolerance_m: 0.004
+    cable_insert_max_overshoot_m: 0.005
+    cable_insert_baseline_window_s: 0.30
+    cable_insert_baseline_min_samples: 20
+    force_sample_timeout_s: 0.20
+    # MoveL 下发后允许控制器短暂切换；收到首个新样本后恢复 0.20s 严格断流保护。
+    force_first_sample_timeout_s: 1.00
+    sixforce_topic: "/rm_driver/udp_six_zero_force"
+    arm_status_topic: "/rm_driver/udp_arm_current_status"
+    # MoveL 必须使用控制器原生末端位姿，不能与 URDF Link6/TCP 坐标混算。
+    controller_pose_topic: "/rm_driver/udp_arm_position"
+    controller_pose_timeout_s: 0.20
+    # ID2 安装在竖直面，且比插孔高 0.50m，因此使用独立的感知识别范围。
+    cable_marker_max_surface_tilt_deg: 95.0
+    cable_marker_workspace_min: [-0.75, -0.75, -0.20]
+    cable_marker_workspace_max: [0.90, 0.90, 1.30]
+
+    observation_service: "/eco65_observation/move_to_observation"
+    joint_states_topic: "/joint_states"
+    joint_names: ["joint1", "joint2", "joint3", "joint4", "joint5", "joint6"]
+
+    # Search by small joint1 steps after reaching observation pose.
+    enable_base_scan: true
+    base_scan_joint_name: "joint1"
+    base_scan_min_rad: -1.20
+    base_scan_max_rad: 1.20
+    base_scan_step_rad: 0.25
+    base_scan_initial_direction: 1.0
+    base_scan_speed: 10
+    base_scan_settle_s: 2.0
+    base_scan_step_dwell_s: 2.0
+    base_scan_timeout_s: 90.0
+
+    # Grasp geometry. Tool +Z points from flange to gripper center.
+    # Additional yaw compensation for the current gripper mounting direction.
+    grasp_yaw_offset_deg: 0.0
+    pregrasp_height_m: 0.050
+    grasp_below_surface_m: 0.020
+    lift_height_m: 0.050
+
+    # Motion through rm_driver pose topics.
+    execute_motion: false
+    movej_p_topic: "/rm_driver/movej_p_cmd"
+    movej_p_result_topic: "/rm_driver/movej_p_result"
+    movel_topic: "/rm_driver/movel_cmd"
+    movel_result_topic: "/rm_driver/movel_result"
+    move_stop_topic: "/rm_driver/move_stop_cmd"
+    movej_topic: "/rm_driver/movej_cmd"
+    movej_result_topic: "/rm_driver/movej_result"
+    pose_speed: 10
+    linear_speed: 5
+    joint_speed: 10
+    command_timeout_s: 20.0
+
+    gripper_port: "/dev/ttyACM0"
+    gripper_baud: 115200
+    gripper_timeout_s: 1.0
+    gripper_open_hex: "7b01020020492000c8f97d"
+    gripper_close_hex: "7b01020120492000c8f87d"
+    gripper_motion_wait_s: 1.0
+    # Cooperative carrying mode: keep grasping after lift, then arm sixforce
+    # compliance so another robot can move the shared object.
+    release_after_lift: false
+    release_wait_s: 3.0
+    start_compliance_after_lift: true
+    compliance_settle_before_zero_s: 1.5
+    compliance_zero_service: "/sixforce_compliance/zero_bias"
+    compliance_start_service: "/sixforce_compliance/start"
+    compliance_service_timeout_s: 5.0

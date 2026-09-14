@@ -1,0 +1,171 @@
+eco65_knob_detector:
+  ros__parameters:
+    base_frame: "baselink"
+    flange_frame: "Link6"
+    handeye_file: "/home/proton/eco65_grasp_ws/handeye_config.json"
+    # Gripper TCP relative to flange/Link6.
+    tool_xyz: [0.0, 0.0, 0.155]
+    tool_rpy: [0.0, 0.0, 0.0]
+
+    weights: "/home/proton/knob/best.onnx"
+    device: "cpu"
+    imgsz: 960
+    confidence: 0.50
+    keypoint_confidence: 0.35
+    process_hz: 5.0
+
+    color_image_topic: "/camera/color/image_raw"
+    color_info_topic: "/camera/color/camera_info"
+    depth_image_topic: "/camera/depth/image_raw"
+    depth_info_topic: "/camera/depth/camera_info"
+    depth_to_color_topic: "/camera/depth_to_color"
+    depth_registered_to_color: false
+
+    depth_min_m: 0.08
+    depth_max_m: 1.20
+    depth_stride: 2
+    polygon_shrink: 0.78
+    min_plane_points: 50
+
+    # pnp: 已知尺寸四角解算；surrounding_panel: 外围安装面；knob: 旧版内部拟合。
+    plane_source: "pnp"
+    pnp_long_size_m: 0.030
+    pnp_short_size_m: 0.010
+    pnp_max_reprojection_error_px: 4.0
+    # 当前安装面朝向基坐标 Y+；用于排除平面 PnP 的镜像解。
+    pnp_expected_approach_axis_base: [0.0, 1.0, 0.0]
+    pnp_max_approach_deviation_deg: 45.0
+    pnp_continuity_weight_px_per_deg: 0.02
+    # 小车可正对桁架停车：固定侧抓接近方向，平面内角度仍由关键点计算。
+    lock_approach_axis_base: true
+    fixed_approach_axis_base: [0.0, 1.0, 0.0]
+    # 沿Y方向拟合旋钮前表面和后方安装面，抓取参考平面取两层中间。
+    fixed_plane_depth_source: "two_surface_midpoint"
+    fixed_plane_depth_offset_m: 0.0
+    # 有效旋钮前后表面间距；过小通常是同一表面的深度噪声分层。
+    fixed_plane_min_surface_separation_m: 0.015
+    fixed_plane_max_surface_separation_m: 0.035
+    fixed_plane_min_cluster_ratio: 0.10
+    # 旋钮区域只有单一前表面时，用已知半厚度推算中心。
+    fixed_plane_single_surface_fallback_enabled: true
+    single_surface_max_separation_m: 0.010
+    knob_front_to_center_offset_m: 0.005
+    # 单表面路径连同 grasp_extra_depth_m 最终停在前表面约 Y-15mm。
+    single_surface_extra_depth_offset_m: -0.015
+    # 双表面不可见时，允许使用外围安装面推算旋钮中心深度。
+    fixed_plane_panel_fallback_enabled: true
+    # 从安装面沿接近轴向机械臂侧偏移到旋钮抓取中心。
+    panel_to_knob_center_offset_m: 0.012
+    panel_fixed_axis_max_angle_deg: 20.0
+    # 外围环形区域：outer 内、inner 外的区域用于安装面拟合。
+    panel_outer_scale: 2.20
+    panel_inner_scale: 1.25
+    panel_min_points: 100
+    panel_ransac_iterations: 100
+    panel_inlier_threshold_m: 0.003
+    panel_min_inlier_ratio: 0.45
+    panel_max_rms_m: 0.0025
+    panel_max_view_angle_deg: 70.0
+    # 从旋钮内部深度估计其表面相对安装面的凸出高度。
+    knob_height_percentile: 75.0
+    knob_min_height_m: 0.002
+    knob_max_height_m: 0.050
+    # 若估计的抓取面仍偏深/偏浅，可沿安装面法向增加固定补偿。
+    knob_surface_offset_m: 0.0
+
+    stable_frames: 5
+    stable_position_std_m: 0.006
+    stable_angle_std_deg: 6.0
+    # 三维平面法向和抓取轴必须连续稳定，防止斜视时背景深度导致箭头跳动。
+    stable_normal_spread_deg: 5.0
+    stable_axis_spread_deg: 6.0
+    # ONNX推理约1秒/帧，给人工确认和服务调用留出时间。
+    target_timeout_s: 5.0
+    center_error_ratio_max: 0.25
+    # geometric: 仿 ArUco，用四角对角线交点作为抓取中心；model: 使用 YOLO 第 5 个 center 点。
+    target_center_source: "model"
+    # YOLO中心与四角对角线交点足够接近时取平均；差异过大则不生成目标。
+    center_blend_max_difference_m: 0.004
+    center_reject_difference_m: 0.008
+    # 抓取中心局部补偿，坐标顺序为 [夹爪闭合轴, 旋钮长轴, 侧向接近轴]。
+    target_position_offset_m: [0.0, 0.0, 0.0]
+
+    # 旋钮长条约 30mm x 10mm，初期先留宽松范围。
+    min_long_size_m: 0.020
+    max_long_size_m: 0.045
+    min_short_size_m: 0.005
+    max_short_size_m: 0.018
+    # 尺寸异常通常表示深度平面拟合到了背景，禁止生成可执行目标。
+    reject_size_out_of_range: true
+
+    # 只用于 RViz 预抓取 marker；第一版不发送运动命令。
+    pregrasp_distance_m: 0.070
+    # 侧抓时视觉中心可能落在旋钮实体内部；负值表示最终抓取点停在中心面前方。
+    grasp_extra_depth_m: -0.005
+    retreat_distance_m: 0.040
+    # 工具 Z 轴由相机侧指向旋钮；预抓取点位于旋钮前方 7cm。
+    approach_axis_sign: 1.0
+    # 第一版抓旋钮先不自动后退，避免夹爪还在闭合时 MoveL retreat 把末端拉走。
+    retreat_after_close: false
+    grasp_orientation_offset_rpy: [0.0, 0.0, 0.0]
+    # 仿照 ArUco 视觉抓取：预抓取使用目标侧抓姿态，MoveJ_P 规划过去。
+    use_current_orientation_for_pregrasp: false
+
+    # Grasp execution. Keep false for vision-only validation.
+    execute_motion: false
+    joint_states_topic: "/joint_states"
+    joint_state_timeout_s: 1.0
+    # 旋钮观察位，单位为 rad；记录于 2026-08-28 当前示教位姿。
+    observation_joints: [1.507941766, -0.342456250, 2.188142691, -1.294528207, -1.503352407, -0.038198048]
+    observation_speed: 8
+    # 直接读取驱动的六维力，不要同时启动会发送运动命令的柔顺节点。
+    sixforce_topic: "/rm_driver/udp_six_zero_force"
+    force_sample_timeout_s: 0.20
+    mz_guard_enabled: true
+    # 开始拧动前，在当前夹持状态自动记录一段 Mz 作为本轮零点。
+    mz_zero_window_s: 0.50
+    mz_zero_min_samples: 20
+    # 相对零点的 |Mz| 连续达到该阈值时，停止、张开并后撤。
+    mz_resistance_threshold_nm: 0.40
+    mz_trigger_samples: 3
+    # 忽略每条 MoveJ 起步最初 0.1s 的瞬时冲击。
+    mz_guard_delay_s: 0.10
+    force_release_wait_s: 0.10
+    movej_topic: "/rm_driver/movej_cmd"
+    movej_result_topic: "/rm_driver/movej_result"
+    movej_p_topic: "/rm_driver/movej_p_cmd"
+    movej_p_result_topic: "/rm_driver/movej_p_result"
+    movel_topic: "/rm_driver/movel_cmd"
+    movel_result_topic: "/rm_driver/movel_result"
+    move_stop_topic: "/rm_driver/move_stop_cmd"
+    # 仿照 ArUco 视觉抓取：预抓取用 MoveJ_P，最后接近再用 MoveL。
+    pregrasp_use_linear_motion: false
+    # 防止视觉/TF 异常时规划到过远位置；0 表示关闭保护。
+    max_pregrasp_distance_m: 0.40
+    pose_speed: 8
+    linear_speed: 8
+    command_timeout_s: 45.0
+
+    # true：持续循环，直到 Mz 受阻保护触发；false：只执行 turn_cycles。
+    turn_until_resistance: true
+    # 传感器未触发时的硬上限，避免旋钮空转或阈值异常造成无限运行。
+    max_turn_cycles: 10
+    # 固定轮数模式使用；每轮顺时针 18x10deg，轮间逆时针 2x90deg 复位。
+    turn_cycles: 2
+    turn_step_deg: 10.0
+    turn_steps_per_cycle: 18
+    reset_step_deg: 90.0
+    reset_steps: 2
+    # 从夹爪朝旋钮方向观察的“顺时针”对应 joint6 的符号；若方向相反改为 1.0。
+    wrist_clockwise_sign: 1.0
+    wrist_speed: 8
+    wrist_joint_limit_deg: 350.0
+    # false：最后一轮拧完保持夹持，不再执行张开、撤出和复位。
+    reset_after_last_cycle: false
+
+    gripper_port: "/dev/ttyACM0"
+    gripper_baud: 115200
+    gripper_timeout_s: 1.0
+    gripper_open_hex: "7b01020020492000c8f97d"
+    gripper_close_hex: "7b01020120492000c8f87d"
+    gripper_motion_wait_s: 2.0
